@@ -22,6 +22,20 @@ func getTodos(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func getTodoFromOneFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	tempTodo, err := getTodoDataFromOneFile()
+
+	if err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
+
+	if err := json.NewEncoder(w).Encode(tempTodo); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
+}
+
 func addTodo(w http.ResponseWriter, r *http.Request) {
 	var newTodo todo
 
@@ -31,7 +45,9 @@ func addTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	newTodo.TodosNumber = getTodosLastNumber(todos) + 1
+	//newTodo.TodosNumber = getTodosLastNumber(todos) + 1
+	newTodo.TodosNumber = len(*todos) + 1
+
 	//fmt.Printf("Received: \n TodosNumber = %d \n Id = %s \n Item = %s \n Completed = %t\n", newTodo.TodosNumber, newTodo.ID, newTodo.Item, newTodo.Completed)
 	*todos = append(*todos, newTodo)
 
@@ -222,4 +238,66 @@ func getTodosFromFileParallel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 	}
 
+}
+
+func getTodosFromFileParallelRWM(w http.ResponseWriter, r *http.Request) {
+	var result []todo
+	var mu sync.RWMutex
+	var wg sync.WaitGroup
+
+	collect := func(n int) {
+		defer wg.Done()
+		mu.RLock()
+		todoList, err := getTodoDataFromFileP(n)
+		mu.RUnlock()
+		if err != nil {
+			fmt.Println("Error getting data from file", n, ":", err)
+			return
+		}
+		mu.Lock()
+		result = append(result, *todoList...)
+		mu.Unlock()
+	}
+
+	wg.Add(3)
+	go collect(1)
+	go collect(2)
+	go collect(3)
+
+	wg.Wait()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
+}
+
+func getTodosFromCache(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	todos := todoCache.All()
+	if err := json.NewEncoder(w).Encode(todos); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
+}
+
+func addTodoToCache(w http.ResponseWriter, r *http.Request) {
+	var newTodo todo
+	if err := json.NewDecoder(r.Body).Decode(&newTodo); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	newTodo.TodosNumber = len(todoCache.All()) + 1
+	todoCache.Set(newTodo)
+	w.WriteHeader(http.StatusCreated)
+}
+
+func getTodoByIDFromCache(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/todos/")
+	t, ok := todoCache.Get(id)
+	if !ok {
+		http.Error(w, "Todo not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(t)
 }

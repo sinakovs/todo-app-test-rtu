@@ -5,17 +5,19 @@ import (
 	"time"
 )
 
-type todo struct {
-	TodosNumber int    `json;"id"`
-	ID          string `json;"id"`
-	Item        string `json;"item"`
-	Completed   bool   `json;"completed"`
-}
-
 var todos, _ = getTodoDataFromFile()
 var currentTodosInFile = len(*todos)
 
+var todoCache = NewTodoCache()
+
 func main() {
+
+	data, _ := getTodoDataFromFile()
+
+	for _, t := range *data {
+		todoCache.Set(t)
+	}
+
 	startWorkerPool(10)
 
 	port := "8080"

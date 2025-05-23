@@ -10,6 +10,13 @@ import (
 	"sync"
 )
 
+type todo struct {
+	TodosNumber int    `json;"id"`
+	ID          string `json;"id"`
+	Item        string `json;"item"`
+	Completed   bool   `json;"completed"`
+}
+
 type Task struct {
 	ID   int     `json:"id"`
 	Todo *[]todo `json:"title"`
@@ -18,6 +25,25 @@ type Task struct {
 
 var taskQueue = make(chan Task, 100)
 var mu sync.Mutex
+
+func getTodoDataFromOneFile() (*[]todo, error) {
+	var todosForTest = []todo{}
+	file, err := os.Open(dataPath)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := todoDecode(scanner.Text())
+		//fmt.Println(line)
+		todosForTest = append(todosForTest, line)
+	}
+
+	return &todosForTest, nil
+}
 
 func getTodoDataFromFile() (*[]todo, error) {
 	var testTodos = []todo{}

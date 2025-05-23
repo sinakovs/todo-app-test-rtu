@@ -10,6 +10,7 @@ func routes() http.Handler {
 
 	api.HandleFunc("GET /todos", getTodos)
 	api.HandleFunc("POST /todos", addTodo)
+	api.HandleFunc("GET /todos/one", getTodoFromOneFile)
 	api.HandleFunc("GET /todos/", getTodo)
 	api.HandleFunc("DELETE /todos/", deleteTodo)
 	api.HandleFunc("PATCH /todos/", toggleTodoStatus)
@@ -17,6 +18,11 @@ func routes() http.Handler {
 	api.HandleFunc("POST /save", saveDataToFile)
 	api.HandleFunc("POST /parallel", getTodosAndSave)
 	api.HandleFunc("GET /parallel/file", getTodosFromFileParallel)
+	api.HandleFunc("GET /parallel/rwm", getTodosFromFileParallelRWM)
+
+	api.HandleFunc("GET /cache", getTodosFromCache)
+	api.HandleFunc("POST /cache", addTodoToCache)
+	api.HandleFunc("GET /cache/", getTodoByIDFromCache)
 
 	return api
 }
